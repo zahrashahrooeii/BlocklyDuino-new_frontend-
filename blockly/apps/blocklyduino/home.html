@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to BlocklyDuino</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      background-color: #ffffff;
+    }
+
+    img {
+      width: 40px; /* Adjust size of the logo */
+      height: auto;
+      margin-top: 20px; /* Space from the top */
+      margin-bottom: 20px; /* Space between logo and title */
+    }
+
+    h1 {
+      font-size: 1.7em;
+      color: #000;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    h1 a {
+      text-decoration: none;
+      color: #000000;
+      font-weight: bold;
+    }
+
+    h1 a:hover {
+      text-decoration: underline;
+      color: #131f30;
+    }
+
+    .button-container {
+      position: absolute;
+      top: 53%; /* Adjusts the vertical position of the button */
+      left: 50%; /* Centers the button horizontally */
+      transform: translate(-50%, -50%); /* Fixes the button centering */
+    }
+
+    .explore-btn {
+      font-size: 1.4em; /* Adjust font size */
+      color: rgb(19, 18, 18); /* Text color */
+      background-color: #e3e4e8; /* Background color */
+      padding: 40px 40px; /* Padding for the button */
+      border: 2px solid gray; /* Stroke (border) with gray color */
+      border-radius: 26px; /* Rounded corners */
+      cursor: pointer;
+      text-decoration: none; /* Remove underline if it’s a hyperlink */
+    }
+
+    .explore-btn:hover {
+      background-color: #bbbcbd; /* Darker background on hover */
+      border-color: darkgray; /* Change border color on hover */
+    }
+  </style>
+</head>
+<body>
+  <!-- Logo -->
+  <img src="logo.png.jpg" alt="BlocklyDuino Logo" class="logo">
+  
+  <!-- Welcome Title -->
+  <h1>
+    <a href="https://github.com/zahrashahrooeii/BlocklyDuino-new_frontend-" target="_blank">
+      Welcome to <span style="color: #5e7290;">BlocklyDuino</span>
+    </a>
+  </h1>
+  
+  <!-- Button Container -->
+  <div class="button-container">
+    <button class="explore-btn" onclick="location.href='index.html';">
+      Explore BlocklyDuino
+    </button>
+  </div>
+</body>
+</html>
