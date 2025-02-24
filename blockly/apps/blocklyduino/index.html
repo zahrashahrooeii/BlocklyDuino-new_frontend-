@@ -11,6 +11,9 @@
   <script type="text/javascript" src="spin.js"></script>
   <script type="text/javascript" src="FileSaver.min.js"></script>
   <script type="text/javascript" src="blockly_helper.js"></script>
+
+  <link rel="stylesheet" href="animations.css">
+
   <style>
     html, body {
       height: 100%;
@@ -35,6 +38,32 @@
       padding: 10px;
       box-sizing: border-box;
     }
+    /* Debug Button Styles */
+/* Debug Button Styles */
+.debug-btn {
+  width: 86px; 
+  height: 20px;
+  background-color: #4CAF50; /* Green background */
+  color: white; /* White text */
+  border: none;  
+  border-radius: 4px; /* Rounded corners */
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px; /* Space below the button */
+  position: absolute; /* Absolute positioning to align correctly */
+  top: 15px; /* Distance from the top */
+  left: 10px; /* Distance from the left */
+  z-index: 10; /* Ensure it stays above other elements */
+}
+
+.debug-btn:hover {
+  background-color: #409144; /* Darker green on hover */
+}
+
+
 
     button.upload-btn {
       width: 86px; 
@@ -48,6 +77,9 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      position: absolute;
+      top: 20px; /* Distance from the top */
+      z-index: 10; /* Ensure it stays above other elements */
     }
     button.upload-btn:hover {
       background-color: #409144;
@@ -56,7 +88,7 @@
   display: flex;
   justify-content: space-between; /* Spread left and right buttons to each side */
   align-items: center; /* Vertically align buttons */
-  padding: 0 10px; /* Add some horizontal padding for spacing */
+  padding: 0 3px; /* Add some horizontal padding for spacing */
 }
 
 .left-button {
@@ -83,6 +115,8 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      top: 30px; /* Distance from the top */
+      
     }
     button.reset-btn:hover, button.discard-btn:hover {
       background-color: #E18B0D;
@@ -106,16 +140,23 @@ button.save-xml-btn:hover,
 button.load-xml-btn:hover {
   background-color: #364C6D;
 }
+.block-error .blocklyPath {
+    stroke: red !important; /* Highlight the block outline in red */
+    stroke-width: 3px !important; /* Increase the stroke width for visibility */
+}
+
 
     .workspace {
       grid-column: 1 / span 1;
-      height: 95%;
+      height: 90%;
       width: 100%;
       background: white;
       border: 1px solid #ccc;
       position: relative;
       box-sizing: border-box;
       overflow: auto;
+      margin-top: 24px;
+      
     }
     .blocklySvg {
       width: 100% !important;
@@ -191,14 +232,13 @@ button.load-xml-btn:hover {
 </head>
 <body onload="init()">
   <div class="container">
-    <!-- Top-Left Buttons -->
-    <div class="top-left-buttons">
+    <!-- Debug Button -->
+    <div class="debug-button-container">
+      <button id="debug-btn" class="debug-btn">Debug</button>
     </div>
-    
-
     <!-- Blockly Workspace -->
     <div id="content_blocks" class="workspace"></div>
-    
+
 
     <!-- Arduino Code and XML Panel -->
     <div class="code-section">
@@ -257,6 +297,8 @@ button.load-xml-btn:hover {
       <block type="logic_null"></block>
     </category>
     <category name="Control">
+      <block type="setup"></block>
+      <block type="loop"></block>
       <block type="base_delay">
         <value name="DELAY_TIME">
           <block type="math_number">
@@ -381,42 +423,373 @@ button.load-xml-btn:hover {
 
   <script>
     function init() {
-      var toolbox = document.getElementById('toolbox');
-      Blockly.inject(document.getElementById('content_blocks'), {
+      // Inject Blockly workspace
+      const toolbox = document.getElementById("toolbox");
+      Blockly.inject(document.getElementById("content_blocks"), {
         toolbox: toolbox,
-        grid: { spacing: 25, length: 3, colour: '#ccc', snap: true }
+        grid: { spacing: 25, length: 3, colour: "#ccc", snap: true },
       });
-      Blockly.mainWorkspace.addChangeListener(function () {
-        var arduinoCode = Blockly.Arduino.workspaceToCode();
-        document.getElementById('content_arduino').value = arduinoCode;
 
-        var xmlDom = Blockly.Xml.workspaceToDom(Blockly.mainWorkspace);
-        var xmlText = Blockly.Xml.domToPrettyText(xmlDom);
-        document.getElementById('content_xml').value = xmlText;
+      // Update Arduino code and XML on changes
+      Blockly.mainWorkspace.addChangeListener(() => {
+        const arduinoCode = Blockly.Arduino.workspaceToCode(Blockly.mainWorkspace);
+        document.getElementById("content_arduino").value = arduinoCode;
+
+        const xmlDom = Blockly.Xml.workspaceToDom(Blockly.mainWorkspace);
+        const xmlText = Blockly.Xml.domToPrettyText(xmlDom);
+        document.getElementById("content_xml").value = xmlText;
       });
+
+      // Attach Debug button listener
+      document.getElementById("debug-btn").addEventListener("click", highlightInvalidBlocks);
     }
 
+    function highlightInvalidBlocks() {
+    console.log("Starting block validation...");
+
+    const blocks = Blockly.mainWorkspace.getAllBlocks(); // Get all blocks
+    let hasErrors = false;
+    let errorMessages = [];
+    
+    let declaredVariables = new Set();
+    let declaredFunctions = new Set();
+    let calledFunctions = new Set();
+
+    blocks.forEach((block) => {
+        // Reset block color
+        block.setColour(block.style?.colourPrimary || block.getColour());
+
+        let isValid = true; // Assume block is valid unless proven otherwise
+
+        // ✅ Rule 1: HIGH/LOW Block - Must Be Inside a Logical Statement
+if (block.type === "inout_highlow") {
+    let parentBlock = block.getSurroundParent();
+    
+    if (!parentBlock || (parentBlock.type !== "controls_if" && parentBlock.type !== "controls_whileUntil")) {
+        isValid = false;
+        block.setColour("#FF4500"); // Highlight in orange to show warning
+        errorMessages.push(`⚠️ HIGH/LOW block must be inside an IF or WHILE statement.`);
+    }
+}
+
+
+       // ✅ Rule 2: Validate DigitalWrite PIN Range
+  if (block.type === "inout_digital_write") {
+    let pinValue = block.getFieldValue("PIN"); // Get the selected pin
+
+    // Define valid digital pins (1-13 and A0-A5)
+    const validPins = [...Array(13).keys()].map(i => (i + 1).toString()) // ["1", "2", ..., "13"]
+                      .concat(["A0", "A1", "A2", "A3", "A4", "A5"]);  // Add analog pins
+
+    if (!validPins.includes(pinValue)) {
+        isValid = false;
+        block.setColour("#FF4500"); // Highlight as a warning
+        errorMessages.push(`⚠️ Invalid PIN "${pinValue}". Use pins 1-13 or A0-A5.`);
+    }
+}
+
+// ✅ Rule 3: Validate DigitalRead PIN Range
+if (block.type === "inout_digital_read") {
+    let pinValue = block.getFieldValue("PIN"); // Get the selected pin
+
+    // Define valid digital pins (1-13 and A0-A5)
+    const validPins = [...Array(13).keys()].map(i => (i + 1).toString()) // ["1", "2", ..., "13"]
+                      .concat(["A0", "A1", "A2", "A3", "A4", "A5"]);  // Add analog pins
+
+    if (!validPins.includes(pinValue)) {
+        isValid = false;
+        block.setColour("#FF4500"); // Highlight as a warning
+        errorMessages.push(`⚠️ Invalid PIN "${pinValue}". Use pins 1-13 or A0-A5.`);
+    }
+}
+
+// ✅ Rule 4: Validate PIN selection based on block type
+if (block.type === "inout_digital_write" || block.type === "inout_digital_read" || block.type === "inout_analog_write") {
+    let pinValue = block.getFieldValue("PIN"); // Get selected pin
+
+    // Define valid pin ranges
+    const validDigitalPins = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "A0", "A1", "A2", "A3", "A4", "A5"];
+    const validPWMPins = ["3", "5", "6", "9", "10", "11"]; // PWM pins for AnalogWrite
+
+    // Check for invalid DigitalRead/DigitalWrite pins
+    if ((block.type === "inout_digital_write" || block.type === "inout_digital_read") && !validDigitalPins.includes(pinValue)) {
+        isValid = false;
+        block.setColour("#FF4500"); // Highlight block
+        errorMessages.push(`⚠️ Invalid PIN "${pinValue}". Choose between 1-13 or A0-A5 for digital operations.`);
+    }
+
+    // Check for invalid AnalogWrite pins (PWM only)
+    if (block.type === "inout_analog_write" && !validPWMPins.includes(pinValue)) {
+        isValid = false;
+        block.setColour("#FF4500"); // Highlight block
+        errorMessages.push(`⚠️ Invalid PIN "${pinValue}". AnalogWrite only supports PWM pins: 3, 5, 6, 9, 10, 11.`);
+    }
+}
+// ✅ Rule 5: Validate AnalogRead Block - Only A0 to A5 allowed
+if (block.type === "inout_analog_read") {
+    let pinValue = block.getFieldValue("PIN"); // Get selected pin
+
+    // Define valid AnalogRead pins
+    const validAnalogReadPins = ["A0", "A1", "A2", "A3", "A4", "A5"];
+
+    // Check if the selected pin is invalid
+    if (!validAnalogReadPins.includes(pinValue)) {
+        isValid = false;
+        block.setColour("#FF4500"); // Highlight block
+        errorMessages.push(`⚠️ Invalid PIN "${pinValue}". AnalogRead only supports A0 to A5.`);
+    }
+}
+
+     // ✅ Rule 6: Validate Serial Print Block - Prevent Empty Messages
+    if (block.type === "serial_print") {
+      let content = block.getInputTargetBlock("CONTENT"); // Get the content inside Serial Print
+
+    // Check if the block is empty
+    if (!content || content.getFieldValue("TEXT").trim() === "") {
+        isValid = false;
+        block.setColour("#FFA500"); // Highlight block in orange
+        errorMessages.push(`⚠️ Serial Print block is empty. Add a message to print.`);
+    }
+}
+ // ✅ Rule 7: Validate Tone Block - Ensure valid pin and frequency
+if (block.type === "inout_tone") {
+    let pin = block.getFieldValue("PIN"); // Get the selected pin
+    let frequencyBlock = block.getInputTargetBlock("NUM"); // Get frequency input
+
+    let allowedPins = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "A0", "A1", "A2", "A3", "A4", "A5"];
+    let isValid = true;
+
+    if (!allowedPins.includes(pin)) {
+        isValid = false;
+        block.setColour("#FF4500"); // Highlight in orange for warnings
+        errorMessages.push(`⚠️ Invalid pin selected: ${pin}. Choose a pin between 1-13 or A0-A5.`);
+    }
+
+    if (!frequencyBlock) {
+        isValid = false;
+        block.setColour("#FF4500");
+        errorMessages.push(`⚠️ Frequency is missing. Please specify a frequency value.`);
+    } else {
+        let frequency = parseInt(frequencyBlock.getFieldValue("NUM"));
+        if (isNaN(frequency) || frequency < 31 || frequency > 65535) {
+            isValid = false;
+            block.setColour("#FF0000"); // Highlight in red for critical errors
+            errorMessages.push(`❌ Frequency ${frequency} Hz is out of range. Use values between 31 Hz and 65535 Hz.`);
+        }
+    }
+}
+// ✅ Rule 8: Validate NoTone Block - Ensure valid pin and dependency on Tone
+if (block.type === "inout_notone") {
+    let pin = block.getFieldValue("PIN"); // Get the selected pin
+
+    let allowedPins = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "A0", "A1", "A2", "A3", "A4", "A5"];
+    let isValid = true;
+
+    if (!allowedPins.includes(pin)) {
+        isValid = false;
+        block.setColour("#FF4500"); // Highlight in orange for warnings
+        errorMessages.push(`⚠️ Invalid pin selected: ${pin}. Choose a pin between 1-13 or A0-A5.`);
+    }
+
+        // Check if there is a Tone block using the same pin
+        let toneExists = false;
+           blocks.forEach((b) => {
+           if (b.type === "inout_tone" && b.getFieldValue("PIN") === pin) {
+            toneExists = true;
+        }
+    });
+
+          if (!toneExists) {
+          isValid = false;
+          block.setColour("#FF0000"); // Highlight in red for critical errors
+         errorMessages.push(`❌ NoTone() is used on pin ${pin}, but no active Tone() was found on this pin.`);
+    }
+}
+
+
+        // ✅ Rule 9: If Block - Check Missing Condition
+        if (block.type === "controls_if") {
+            let condition = block.getInputTargetBlock("IF0");
+            if (!condition) {
+                isValid = false;
+                block.setColour("#FF0000"); // Red for critical errors
+                errorMessages.push(`⚠️ "If" block is missing a condition.`);
+            }
+        }
+
+        // ✅ Rule 10: Arithmetic Block - Check Missing Values
+        if (block.type === "math_arithmetic") {
+            let leftValue = block.getInputTargetBlock("A");
+            let rightValue = block.getInputTargetBlock("B");
+            if (!leftValue || !rightValue) {
+                isValid = false;
+                block.setColour("#FF4500"); // Mark orange for warning
+                errorMessages.push(`⚠️ Arithmetic block is missing one or both values.`);
+            }
+        }
+
+        // ✅ Rule 11: If-Return Block Must Have a Condition & Value
+        if (block.type === "procedures_ifreturn") {
+            let conditionBlock = block.getInputTargetBlock("CONDITION");
+            let returnBlock = block.getInputTargetBlock("VALUE") || block.getFieldValue("VALUE");
+
+            if (!conditionBlock) {
+                isValid = false;
+                block.setColour("#FF4500"); // Mark as red
+                errorMessages.push(`❌ "If-Return" block is missing a condition.`);
+            }
+
+            if (!returnBlock) {
+                isValid = false;
+                block.setColour("#FFA500"); // Mark as orange
+                errorMessages.push(`⚠️ "If-Return" block must return a value.`);
+            }
+        }
+
+        // ✅ Rule 12: Prevent Standalone Return Statements
+        if (block.type === "procedures_ifreturn" || block.type === "procedures_return") {
+            let parent = block.getSurroundParent();
+            if (!parent || parent.type !== "procedures_defreturn") {
+                isValid = false;
+                block.setColour("#FF0000");
+                errorMessages.push(`❌ "Return" statements must be inside a function.`);
+            }
+        }
+
+        // ✅ Rule 13: Map Block - Check for Missing Values
+        if (block.type === "base_map") {
+            let requiredInputs = ["VALUE", "DMIN", "DMAX", "SMIN", "SMAX"];
+            let missingInputs = requiredInputs.filter(input => !block.getInputTargetBlock(input));
+            if (missingInputs.length > 0) {
+                isValid = false;
+                block.setColour("#FF4500");
+                errorMessages.push(`⚠️ Map block is missing values: ${missingInputs.join(", ")}`);
+            }
+        }
+
+        // ✅ Rule 14: Empty Text Block - Check for Missing Text
+        if (block.type === "text") {
+            let textValue = block.getFieldValue("TEXT");
+            if (!textValue || textValue.trim() === "") {
+                isValid = false;
+                block.setColour("#FFA500");
+                errorMessages.push(`⚠️ Text block is empty. Consider adding content.`);
+            }
+        }
+
+        // ✅ Rule 15: Unassigned Variable
+        if (block.type === "variables_set") {
+            let assignedValue = block.getInputTargetBlock("VALUE");
+            if (!assignedValue) {
+                isValid = false;
+                block.setColour("#FFA500");
+                errorMessages.push(`⚠️ Variable "${block.getFieldValue("VAR")}" is assigned without a value.`);
+            }
+            declaredVariables.add(block.getFieldValue("VAR"));
+        }
+
+        // ✅ Rule 16: Detect Uninitialized Variable Use
+        if (block.type === "variables_get") {
+            let variableName = block.getFieldValue("VAR");
+            if (!declaredVariables.has(variableName)) {
+                isValid = false;
+                block.setColour("#FFA500");
+                errorMessages.push(`⚠️ Variable "${variableName}" is used before being initialized.`);
+            }
+        }
+
+        // ✅ Rule 17: Detect Unused Functions
+        if (block.type === "procedures_defreturn" || block.type === "procedures_defnoreturn") {
+            let functionName = block.getFieldValue("NAME");
+            declaredFunctions.add(functionName);
+        }
+
+        if (block.type === "procedures_callreturn" || block.type === "procedures_callnoreturn") {
+            let functionName = block.getFieldValue("NAME");
+            calledFunctions.add(functionName);
+        }
+
+        // ✅ Rule 18: AND/OR Block Must Have Two Conditions
+        if (block.type === "logic_operation") {
+            let leftOp = block.getInputTargetBlock("A");
+            let rightOp = block.getInputTargetBlock("B");
+
+            if (!leftOp || !rightOp) {
+                isValid = false;
+                block.setColour("#FF4500");
+                errorMessages.push(`⚠️ AND/OR block is missing one or both conditions.`);
+            }
+        }
+
+        // ✅ Rule 19: While Block Must Have a Condition
+        if (block.type === "controls_whileUntil") {
+            let conditionBlock = block.getInputTargetBlock("BOOL");
+            if (!conditionBlock) {
+                isValid = false;
+                block.setColour("#FF4500");
+                errorMessages.push(`⚠️ While block is missing a condition.`);
+            }
+        }
+
+        // ✅ Rule 20: Delay Block Cannot Have Negative Values
+        if (block.type === "base_delay") {
+            let delayInput = block.getInputTargetBlock("DELAY_TIME");
+            if (delayInput && delayInput.type === "math_number") {
+                let delayValue = parseFloat(delayInput.getFieldValue("NUM"));
+                if (delayValue < 0) {
+                    isValid = false;
+                    block.setColour("#FF0000");
+                    errorMessages.push(`⚠️ Invalid Delay: ${delayValue}ms. Delay cannot be negative.`);
+                }
+            }
+        }
+
+        if (!isValid) {
+            hasErrors = true;
+        }
+    });
+
+    // ✅ Detect Unused Functions
+    declaredFunctions.forEach((functionName) => {
+        if (!calledFunctions.has(functionName)) {
+            hasErrors = true;
+            errorMessages.push(`⚠️ Function "${functionName}" is defined but never used.`);
+        }
+    });
+
+    // ✅ Show error messages
+    if (errorMessages.length > 0) {
+        console.warn("🔍 Debugging Summary:");
+        errorMessages.forEach((msg) => console.warn(msg));
+        alert("⚠️ Fix the following issues before running the code:\n" + errorMessages.join("\n"));
+    } else {
+        console.log("🎉 No errors found!");
+    }
+}
+
+
     function saveCode() {
-      var code = document.getElementById('content_arduino').value;
-      var blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+      const code = document.getElementById("content_arduino").value;
+      const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
       saveAs(blob, "program.ino");
     }
 
     function saveXML() {
-      var xmlText = document.getElementById('content_xml').value;
-      var blob = new Blob([xmlText], { type: "text/plain;charset=utf-8" });
+      const xmlText = document.getElementById("content_xml").value;
+      const blob = new Blob([xmlText], { type: "text/plain;charset=utf-8" });
       saveAs(blob, "workspace.xml");
     }
 
     function loadFile(event) {
-      var reader = new FileReader();
+      const reader = new FileReader();
       reader.onload = function () {
-        var xmlDom = Blockly.Xml.textToDom(reader.result);
+        const xmlDom = Blockly.Xml.textToDom(reader.result);
         Blockly.mainWorkspace.clear();
         Blockly.Xml.domToWorkspace(Blockly.mainWorkspace, xmlDom);
       };
       reader.readAsText(event.target.files[0]);
     }
   </script>
-</body>
-</html>
+  </body>
+  </html>
+  

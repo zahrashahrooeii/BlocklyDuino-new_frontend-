@@ -55,3 +55,14 @@ Blockly.Arduino.procedures_callnoreturn=function(){for(var a=Blockly.Arduino.var
 Blockly.Arduino.procedures_ifreturn=function(){var a="if ("+(Blockly.Arduino.valueToCode(this,"CONDITION",Blockly.Arduino.ORDER_NONE)||"false")+") {\n";if(this.hasReturnValue_)var b=Blockly.Arduino.valueToCode(this,"VALUE",Blockly.Arduino.ORDER_NONE)||"null",a=a+("  return "+b+";\n");else a+="  return;\n";return a+"}\n"};Blockly.Arduino.texts={};Blockly.Arduino.text=function(){return[Blockly.Arduino.quote_(this.getFieldValue("TEXT")),Blockly.Arduino.ORDER_ATOMIC]};Blockly.Arduino.variables={};Blockly.Arduino.variables_get=function(){return[Blockly.Arduino.variableDB_.getName(this.getFieldValue("VAR"),Blockly.Variables.NAME_TYPE),Blockly.Arduino.ORDER_ATOMIC]};
 Blockly.Arduino.variables_declare=function(){this.getFieldValue("TYPE");var a=Blockly.Arduino.valueToCode(this,"VALUE",Blockly.Arduino.ORDER_ASSIGNMENT)||"0",b=Blockly.Arduino.variableDB_.getName(this.getFieldValue("VAR"),Blockly.Variables.NAME_TYPE);Blockly.Arduino.setups_["setup_var"+b]=b+" = "+a+";\n";return""};
 Blockly.Arduino.variables_set=function(){var a=Blockly.Arduino.valueToCode(this,"VALUE",Blockly.Arduino.ORDER_ASSIGNMENT)||"0";return Blockly.Arduino.variableDB_.getName(this.getFieldValue("VAR"),Blockly.Variables.NAME_TYPE)+" = "+a+";\n"};
+// Define the generator for the setup block
+Blockly.Arduino['setup'] = function(block) {
+    var statements = Blockly.Arduino.statementToCode(block, 'DO');
+    return 'void setup() {\n' + statements + '}\n\n';
+};
+
+// Define the generator for the loop block
+Blockly.Arduino['loop'] = function(block) {
+    var statements = Blockly.Arduino.statementToCode(block, 'DO');
+    return 'void loop() {\n' + statements + '}\n\n';
+};

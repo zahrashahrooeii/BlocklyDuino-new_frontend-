@@ -1,0 +1,21 @@
+/* Shake animation */
+.shake {
+    animation: shake 0.5s;
+  }
+  
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+  }
+  
+  /* Glow animation for execution flow */
+  .glow {
+    animation: glow 1s infinite alternate;
+  }
+  
+  @keyframes glow {
+    from { box-shadow: 0 0 5px #00ff00; }
+    to { box-shadow: 0 0 15px #00ff00; }
+  }
+  
